@@ -1,13 +1,12 @@
-#!/usr/bin/env python
-
+import argparse
+import json
+import os
 import sys
 import time
-import argparse
+
 import psycopg2 as pg
-import os
-import row_processor as Processor
+import core.utils as Processor
 import six
-import json
 
 # Special rules needed for certain tables (esp. for old database dumps)
 specialRules = {("Posts", "ViewCount"): "NULLIF(%(ViewCount)s, '')::int"}
@@ -200,6 +199,9 @@ def handleTable(table, insertJson, createFk, mbDbFile):
 
     try:
         with pg.connect(**getConnectionParameters()) as conn:
+            six.print_(f"Connection parameters: {getConnectionParameters()}")
+            six.print_("Connected to database.")
+            return
             with conn.cursor() as cur:
                 try:
                     with open(dbFile, "rb") as xml:
@@ -279,176 +281,177 @@ def handleTable(table, insertJson, createFk, mbDbFile):
         six.print_("Warning from the database.", file=sys.stderr)
         six.print_("pg.Warning: {0}".format(str(w)), file=sys.stderr)
 
-#############################################################
 
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "-t",
-    "--table",
-    help="The table to work on.",
-    choices=[
-        "Users",
-        "Badges",
-        "Posts",
-        "Tags",
-        "Votes",
-        "PostLinks",
-        "PostHistory",
-        "Comments",
-    ],
-    default=None,
-)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-t",
+        "--table",
+        help="The table to work on.",
+        choices=[
+            "Users",
+            "Badges",
+            "Posts",
+            "Tags",
+            "Votes",
+            "PostLinks",
+            "PostHistory",
+            "Comments",
+        ],
+        default=None,
+    )
 
-parser.add_argument(
-    "-d",
-    "--dbname",
-    help="Name of database to create the table in. The database must exist.",
-    default="stackoverflow",
-)
+    parser.add_argument(
+        "-d",
+        "--dbname",
+        help="Name of database to create the table in. The database must exist.",
+        default="stackoverflow",
+    )
 
-parser.add_argument(
-    "-f", "--file", help="Name of the file to extract data from.", default=None
-)
+    parser.add_argument(
+        "-f", "--file", help="Name of the file to extract data from.", default=None
+    )
 
-parser.add_argument(
-    "-s", "--so-project", help="StackExchange project to load.", default=None
-)
+    parser.add_argument(
+        "-s", "--so-project", help="StackExchange project to load.", default=None
+    )
 
-parser.add_argument(
-    "--archive-url",
-    help="URL of the archive directory to retrieve.",
-    default="https://ia800107.us.archive.org/27/items/stackexchange",
-)
+    parser.add_argument(
+        "--archive-url",
+        help="URL of the archive directory to retrieve.",
+        default="https://ia800107.us.archive.org/27/items/stackexchange",
+    )
 
-parser.add_argument(
-    "-k",
-    "--keep-archive",
-    help="Will preserve the downloaded archive instead of deleting it.",
-    action="store_true",
-    default=False,
-)
+    parser.add_argument(
+        "-k",
+        "--keep-archive",
+        help="Will preserve the downloaded archive instead of deleting it.",
+        action="store_true",
+        default=False,
+    )
 
-parser.add_argument("-u", "--username", help="Username for the database.", default=None)
+    parser.add_argument("-u", "--username", help="Username for the database.", default=None)
 
-parser.add_argument("-p", "--password", help="Password for the database.", default=None)
+    parser.add_argument("-p", "--password", help="Password for the database.", default=None)
 
-parser.add_argument(
-    "-P", "--port", help="Port to connect with the database on.", default=None
-)
+    parser.add_argument(
+        "-P", "--port", help="Port to connect with the database on.", default=None
+    )
 
-parser.add_argument("-H", "--host", help="Hostname for the database.", default=None)
+    parser.add_argument("-H", "--host", help="Hostname for the database.", default=None)
 
-parser.add_argument(
-    "--with-post-body",
-    help="Import the posts with the post body. Only used if importing Posts.xml",
-    action="store_true",
-    default=False,
-)
+    parser.add_argument(
+        "--with-post-body",
+        help="Import the posts with the post body. Only used if importing Posts.xml",
+        action="store_true",
+        default=False,
+    )
 
-parser.add_argument(
-    "-j",
-    "--insert-json",
-    help="Insert raw data as JSON.",
-    action="store_true",
-    default=False,
-)
+    parser.add_argument(
+        "-j",
+        "--insert-json",
+        help="Insert raw data as JSON.",
+        action="store_true",
+        default=False,
+    )
 
-parser.add_argument(
-    "-n", "--schema-name", help="Use specific schema.", default="public"
-)
+    parser.add_argument(
+        "-n", "--schema-name", help="Use specific schema.", default="public"
+    )
 
-parser.add_argument(
-    "--foreign-keys", help="Create foreign keys.", action="store_true", default=False
-)
+    parser.add_argument(
+        "--foreign-keys", help="Create foreign keys.", action="store_true", default=False
+    )
 
-args = parser.parse_args()
+    args = parser.parse_args()
+    six.print_(f"Args: {args}")
 
-try:
-    # Python 2/3 compatibility
-    input = raw_input
-except NameError:
-    pass
+    # load given file in table
+    if args.file and args.table:
+        table = args.table
 
-# load given file in table
-if args.file and args.table:
-    table = args.table
+        if table == "Posts":
+            # If the user has not explicitly asked for loading the body, we replace it with NULL
+            if not args.with_post_body:
+                specialRules[("Posts", "Body")] = "NULL"
 
-    if table == "Posts":
-        # If the user has not explicitly asked for loading the body, we replace it with NULL
-        if not args.with_post_body:
-            specialRules[("Posts", "Body")] = "NULL"
+        choice = input("This will drop the {} table. Are you sure [y/n]?".format(table))
 
-    choice = input("This will drop the {} table. Are you sure [y/n]?".format(table))
+        if len(choice) > 0 and choice[0].lower() == "y":
+            handleTable(
+                table, args.insert_json, args.foreign_keys, args.file)
+        else:
+            six.print_("Cancelled.")
 
-    if len(choice) > 0 and choice[0].lower() == "y":
-        handleTable(
-            table, args.insert_json, args.foreign_keys, args.file)
-    else:
-        six.print_("Cancelled.")
+        exit(0)
 
-    exit(0)
+    # load a project
+    elif args.so_project:
+        import tempfile
 
-# load a project
-elif args.so_project:
-    import libarchive
-    import tempfile
+        import libarchive
 
-    filepath = None
-    temp_dir = None
-    if args.file:
-        filepath = args.file
-        url = filepath
-    else:
-        # download the 7z archive in tempdir
-        file_name = args.so_project + ".stackexchange.com.7z"
-        url = "{0}/{1}".format(args.archive_url, file_name)
-        temp_dir = tempfile.mkdtemp(prefix="so_")
-        filepath = os.path.join(temp_dir, file_name)
-        six.print_("Downloading the archive in {0}".format(filepath))
-        six.print_("please be patient ...")
+        filepath = None
+        temp_dir = None
+        if args.file:
+            filepath = args.file
+            url = filepath
+        else:
+            # download the 7z archive in tempdir
+            file_name = args.so_project + ".stackexchange.com.7z"
+            url = "{0}/{1}".format(args.archive_url, file_name)
+            temp_dir = tempfile.mkdtemp(prefix="so_")
+            filepath = os.path.join(temp_dir, file_name)
+            six.print_("Downloading the archive in {0}".format(filepath))
+            six.print_("please be patient ...")
+            try:
+                six.moves.urllib.request.urlretrieve(url, filepath, show_progress)
+            except Exception as e:
+                six.print_(
+                    "Error: impossible to download the {0} archive ({1})".format(url, e)
+                )
+                exit(1)
+
         try:
-            six.moves.urllib.request.urlretrieve(url, filepath, show_progress)
+            libarchive.extract_file(filepath)
         except Exception as e:
-            six.print_(
-                "Error: impossible to download the {0} archive ({1})".format(url, e)
-            )
+            six.print_("Error: impossible to extract the {0} archive ({1})".format(url, e))
             exit(1)
 
-    try:
-        libarchive.extract_file(filepath)
-    except Exception as e:
-        six.print_("Error: impossible to extract the {0} archive ({1})".format(url, e))
-        exit(1)
+        tables = [
+            "Tags",
+            "Users",
+            "Badges",
+            "Posts",
+            "Comments",
+            "Votes",
+            "PostLinks",
+            "PostHistory",
+        ]
 
-    tables = [
-        "Tags",
-        "Users",
-        "Badges",
-        "Posts",
-        "Comments",
-        "Votes",
-        "PostLinks",
-        "PostHistory",
-    ]
+        for table in tables:
+            six.print_("Load {0}.xml file".format(table))
+            handleTable(table, args.insert_json, args.foreign_keys, None)
+            # remove file
+            os.remove(table + ".xml")
 
-    for table in tables:
-        six.print_("Load {0}.xml file".format(table))
-        handleTable(table, args.insert_json, args.foreign_keys, None)
-        # remove file
-        os.remove(table + ".xml")
+        if not args.keep_archive:
+            os.remove(filepath)
+            if temp_dir:
+                # remove the archive and the temporary directory
+                os.rmdir(temp_dir)
+            else:
+                six.print_("Archive '{0}' deleted".format(filepath))
 
-    if not args.keep_archive:
-        os.remove(filepath)
-        if temp_dir:
-            # remove the archive and the temporary directory
-            os.rmdir(temp_dir)
-        else:
-            six.print_("Archive '{0}' deleted".format(filepath))
+        exit(0)
 
-    exit(0)
+    else:
+        six.print_(
+            "Error: you must either use '-f' and '-t'  arguments or the '-s' argument."
+        )
+        parser.print_help()
 
-else:
-    six.print_(
-        "Error: you must either use '-f' and '-t'  arguments or the '-s' argument."
-    )
-    parser.print_help()
+
+"""
+python3.11 scripts/load_into_pg.py -t Comments -d dump -f data/stackoverflow_dump/Comments.xml -u constantine -p coco -P 5432 -H postgres --foreign-keys
+"""
