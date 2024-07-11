@@ -1,5 +1,10 @@
 argparse==1.2.1
+Flask==3.0.3
+git+https://github.com/zurk/pretty_logging@a0010b663ee590a73dd75df4e96c307adabf1190
 libarchive-c==2.9
-lxml==4.6.3
-psycopg2-binary==2.8.4
+lxml==5.1.1
+psycopg2-binary==2.9.9
+python-dotenv==1.0.1
+qdrant-client[fastembed]>=1.8.2
 six==1.10.0
+typer==0.12.1
