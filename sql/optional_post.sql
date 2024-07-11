@@ -58,6 +58,19 @@ INSERT INTO AllPostTags
   );
 
 
+-- PostComments TABLE
+DROP TABLE IF EXISTS PostComments;
+CREATE TABLE PostComments (
+    PostId int,
+    CommentId  int,
+    PRIMARY KEY (PostId, CommentId)
+);
+INSERT INTO QuestionAnswer
+  ( SELECT C.PostId as PostId, C.Id as CommentId
+    FROM Comments C
+  );
+
+
 -- Questions VIEW
 DROP VIEW IF EXISTS Questions;
 CREATE VIEW Questions AS
