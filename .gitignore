@@ -2,6 +2,13 @@
 *.7z
 *.xml
 *.pyc
-.env/
+.env
 private/
 ./idea
+
+data
+postgres-data 
+postgres-log 
+qdrant_data 
+
+None

@@ -1,0 +1,73 @@
+services:
+  app:
+    build: .
+    container_name: app
+    ports:
+      - "5009:5009"
+    volumes:
+      - .:/app
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PORT: 5432
+      QDRANT__SERVICE__API_KEY: ${QDRANT__SERVICE__API_KEY}
+    depends_on:
+      - postgres
+      - qdrant
+    networks:
+      - postgres-network
+      - qdrant-network
+
+  postgres:
+    image: postgres:16.3-alpine3.20
+    container_name: postgres 
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/initdb.d:/docker-entrypoint-initdb.d
+      - ./postgres-data/data:/var/lib/postgresql/data
+      - ./postgres-log:/var/log/postgresql
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: dump
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    networks:
+      - postgres-network
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: always
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    configs:
+      - source: qdrant_config
+        target: /qdrant/config/production.yaml
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT__SERVICE__API_KEY}
+    env_file:
+      - .env
+    volumes:
+      - ./qdrant_data:/qdrant/storage
+    networks:
+      - qdrant-network
+
+volumes:
+  postgres-data:
+  postgres-log:
+  qdrant:
+
+networks:
+  postgres-network:
+  qdrant-network:
+
+configs:
+  qdrant_config:
+    content: |
+      log_level: INFO     

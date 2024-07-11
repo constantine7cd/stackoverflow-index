@@ -1,0 +1,15 @@
+data
+postgres
+postgres-data
+postgres-log
+qdrant_data
+
+None
+
+misc
+
+.vscode
+.cache
+
+*.egg-info
+__pycache__
