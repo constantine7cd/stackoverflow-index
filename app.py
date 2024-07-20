@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def startup_page():
-    return "Stack index"
+    return "Index"
 
 
 if __name__ == "__main__":

@@ -5,6 +5,8 @@
 .env
 private/
 ./idea
+.vscode
+.cache
 
 data
 postgres-data 
