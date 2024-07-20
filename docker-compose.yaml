@@ -1,9 +1,9 @@
 services:
   app:
     build: .
-    container_name: app
+    container_name: index-app
     ports:
-      - "5009:5009"
+      - "5010:5009"
     volumes:
       - .:/app
       - ./data:/app/data
@@ -65,7 +65,9 @@ volumes:
 
 networks:
   postgres-network:
+    name: postgres-network
   qdrant-network:
+    name: qdrant-network
 
 configs:
   qdrant_config:
